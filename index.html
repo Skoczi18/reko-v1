@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141a33" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#e9eef8" media="(prefers-color-scheme: light)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Siłownia">
+  <meta name="description" content="Plan Upper / Lower, dziennik treningowy, postęp i pomiary. Dane zapisane na Twoim urządzeniu.">
+  <title>Siłownia</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true">
+    <i class="blob blob-amber"></i>
+    <i class="blob blob-teal"></i>
+    <i class="blob blob-blue"></i>
+  </div>
+
+  <main id="view" class="view" tabindex="-1"></main>
+
+  <div id="timer" class="timer glass" role="status" aria-live="polite" hidden></div>
+
+  <nav class="tabbar glass" aria-label="Sekcje aplikacji">
+    <button class="tab" data-tab="trening" aria-label="Trening">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></svg>
+      <span>Trening</span>
+    </button>
+    <button class="tab" data-tab="historia" aria-label="Historia">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8.5 3v4M15.5 3v4"/></svg>
+      <span>Historia</span>
+    </button>
+    <button class="tab" data-tab="postep" aria-label="Postęp">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4.5V19.5h16"/><path d="M7.5 15l4-4.5 3 3L20 7"/></svg>
+      <span>Postęp</span>
+    </button>
+    <button class="tab" data-tab="pomiary" aria-label="Pomiary">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16.5 16.5 3 21 7.5 7.5 21z"/><path d="M7 12.5l1.8 1.8M10 9.5l1.8 1.8M13 6.5l1.8 1.8"/></svg>
+      <span>Pomiary</span>
+    </button>
+    <button class="tab" data-tab="plan" aria-label="Plan">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v15H7.5A2.5 2.5 0 0 0 5 20.5z"/><path d="M5 20.5A2.5 2.5 0 0 0 7.5 23H19v-5"/></svg>
+      <span>Plan</span>
+    </button>
+  </nav>
+
+  <div id="sheet" class="sheet-wrap" hidden>
+    <div class="sheet-scrim" data-action="close-sheet"></div>
+    <section class="sheet glass" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-grabber" aria-hidden="true"></div>
+      <div id="sheet-body"></div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast glass" role="status" aria-live="polite" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
