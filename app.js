@@ -220,7 +220,25 @@ function saveNow() {
   } catch (e) {
     toast('Nie udało się zapisać danych na urządzeniu');
   }
+  window.onLocalSave?.(); // sync.js wyśle zmiany do chmury
 }
+
+// Wywoływane przez sync.js, gdy przyjdą zmiany z innego urządzenia.
+const typing = () => document.activeElement?.matches?.('#view input, #view textarea, #view select');
+window.applyRemote = (fn) => {
+  fn(state);
+  saveNow();
+  if (typing()) ui.pendingRender = true;
+  else render();
+};
+window.onCloudStatus = () => {
+  if (ui.tab !== 'plan') return;
+  if (typing()) ui.pendingRender = true;
+  else render();
+};
+document.addEventListener('focusout', () => {
+  setTimeout(() => { if (ui.pendingRender && !typing()) { ui.pendingRender = false; render(); } }, 0);
+});
 function saveSoon() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveNow, 350);
@@ -892,9 +910,11 @@ function viewPlan() {
     <button class="btn" data-action="clock-test">Test: minutnik na 10 s</button>
     <p class="small faint">Po uruchomieniu na chwilę otworzą się Skróty. Wróć gestem lub stuknij „Siłownia” w lewym górnym rogu. Timer w aplikacji liczy dalej.</p>`);
 
-  html += acc('dane', 'Kopia zapasowa', 'Dane są tylko na tym urządzeniu', `
-    <p>Treningi i pomiary zapisują się w pamięci tej przeglądarki na tym telefonie. Nie trafiają na żaden serwer.</p>
-    <div class="callout warn">Na iPhonie aplikacja dodana do ekranu początkowego ma osobną pamięć niż Safari. Rób kopię co kilka tygodni i przed zmianą telefonu.</div>
+  html += acc('konto', 'Konto i synchronizacja', cloudSub(), cloudBody());
+
+  html += acc('dane', 'Kopia zapasowa', 'Plik JSON do pobrania', `
+    <p>Treningi i pomiary zapisują się w pamięci tego telefonu${window.cloudState?.email ? ' i w Twoim koncie w chmurze' : ''}. Kopia w pliku to dodatkowe zabezpieczenie.</p>
+    <div class="callout warn">Na iPhonie aplikacja dodana do ekranu początkowego ma osobną pamięć niż Safari. ${window.cloudState?.email ? 'Zaloguj się w obu miejscach, a dane będą te same.' : 'Rób kopię co kilka tygodni i przed zmianą telefonu, albo załóż konto wyżej.'}</div>
     <div class="row wrap" style="margin-top:12px">
       <button class="btn" data-action="export">Pobierz kopię (JSON)</button>
       <button class="btn" data-action="import">Wczytaj kopię</button>
@@ -904,6 +924,58 @@ function viewPlan() {
     <button class="btn btn-danger" style="margin-top:8px" data-action="reset-all">Usuń wszystkie dane</button>`);
 
   return html;
+}
+
+/* ---- Konto (Firebase, sync.js) ---- */
+const CLOUD_LABEL = {
+  loading: 'Łączenie…',
+  'signed-out': 'Nie zalogowano. Dane tylko na tym urządzeniu',
+  syncing: 'Synchronizuję…',
+  ok: 'Zsynchronizowano',
+  error: 'Problem z synchronizacją',
+};
+function cloudSub() {
+  const c = window.cloudState;
+  if (!c) return 'Niedostępne bez internetu';
+  return c.email ? `${CLOUD_LABEL[c.status] || ''}: ${c.email}` : CLOUD_LABEL[c.status] || '';
+}
+function cloudBody() {
+  const c = window.cloudState;
+  if (!c) return '<p>Moduł synchronizacji nie wczytał się. Sprawdź internet i otwórz aplikację ponownie. Dane na urządzeniu są bezpieczne.</p>';
+  if (c.email) {
+    return `<p>Zalogowano jako <b>${esc(c.email)}</b>. Każda zmiana trafia do chmury, a inne urządzenia z tym kontem dostają ją same. Bez internetu zapis działa dalej i wyśle się później.</p>
+      ${c.status === 'error' ? `<div class="callout warn">Nie udało się zsynchronizować (${esc(c.detail)}). Spróbuję ponownie przy następnej zmianie.</div>` : ''}
+      <div class="row wrap" style="margin-top:12px">
+        <button class="btn" data-action="cloud-signout">Wyloguj</button>
+      </div>`;
+  }
+  return `<p>Załóż konto, żeby treningi i pomiary były w chmurze (darmowy Firebase). Dzięki temu nie stracisz ich przy zmianie telefonu i zobaczysz je także na komputerze.</p>
+    <label class="lbl" for="c-email">E-mail</label>
+    <input id="c-email" class="field" type="email" autocomplete="username" inputmode="email" autocapitalize="off">
+    <label class="lbl" for="c-pass">Hasło</label>
+    <input id="c-pass" class="field" type="password" autocomplete="current-password" minlength="6">
+    <div class="row wrap" style="margin-top:12px">
+      <button class="btn btn-primary" data-action="cloud-signin">Zaloguj</button>
+      <button class="btn" data-action="cloud-signup">Załóż konto</button>
+      <button class="btn btn-small" data-action="cloud-reset">Nie pamiętam hasła</button>
+    </div>
+    <p class="small faint">Po pierwszym zalogowaniu dane z tego urządzenia połączą się z tymi w chmurze. Nic nie zniknie.</p>`;
+}
+async function cloudAuth(action) {
+  if (!window.cloud) { toast('Synchronizacja niedostępna, sprawdź internet'); return; }
+  const email = $('#c-email')?.value.trim();
+  const pass = $('#c-pass')?.value || '';
+  if (!email) { toast('Wpisz e-mail'); return; }
+  let err;
+  if (action === 'cloud-reset') {
+    err = await window.cloud.reset(email);
+    toast(err || 'Wysłano e-mail do zmiany hasła');
+    return;
+  }
+  err = action === 'cloud-signup' ? await window.cloud.signUp(email, pass) : await window.cloud.signIn(email, pass);
+  document.activeElement?.blur();
+  if (err) toast(err);
+  else toast(action === 'cloud-signup' ? 'Konto założone, synchronizuję' : 'Zalogowano, synchronizuję');
 }
 
 /* ------------------------------ Wykresy ------------------------------ */
@@ -1170,7 +1242,10 @@ function importData(file) {
       if (!data || !Array.isArray(data.workouts) || !Array.isArray(data.measurements)) throw new Error('format');
       if (!confirm(`Wczytać kopię? Zastąpi obecne dane (${data.workouts.length} treningów, ${data.measurements.length} pomiarów w kopii).`)) return;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      const sync = state.sync;
       state = loadState();
+      state.sync = sync;
+      saveNow();
       ui.session = null; ui.week = null;
       render();
       toast('Kopia wczytana');
@@ -1257,12 +1332,30 @@ function onClick(e) {
     case 'export': exportData(); break;
     case 'import': $('#import-file').click(); break;
     case 'reset-all':
+      if (window.cloudState?.email) {
+        // zalogowany: czyścimy tylko to urządzenie, dane w chmurze zostają
+        if (confirm('Wylogować i usunąć dane z tego urządzenia? Dane w chmurze zostaną.')) {
+          window.cloud.signOut().finally(() => {
+            localStorage.removeItem(STORAGE_KEY);
+            state = loadState();
+            ui.session = null; ui.week = null;
+            render(); toast('Wylogowano, dane z urządzenia usunięte');
+          });
+        }
+        break;
+      }
       if (confirm('Usunąć wszystkie treningi, pomiary i ustawienia?') && confirm('Na pewno? Bez kopii tych danych nie da się odzyskać.')) {
         localStorage.removeItem(STORAGE_KEY);
         state = loadState();
         ui.session = null; ui.week = null;
         render(); toast('Dane usunięte');
       }
+      break;
+    case 'cloud-signin':
+    case 'cloud-signup':
+    case 'cloud-reset': cloudAuth(a); break;
+    case 'cloud-signout':
+      if (confirm('Wylogować? Dane zostaną na tym urządzeniu i w chmurze.')) window.cloud?.signOut().then(() => toast('Wylogowano'));
       break;
     case 'close-sheet': closeSheet(); break;
     case 'timer-add':

@@ -2,7 +2,7 @@
 
 Aplikacja w przeglądarce do planu Upper / Lower × 2: trening z zapisem serii, timer przerwy, historia, postęp siły, pomiary ciała oraz cała wiedza z planu (kalorie, jadłospis, progresja, boczki, kroki, suplementy).
 
-Dane zapisują się tylko w pamięci przeglądarki na Twoim urządzeniu. Nic nie trafia na serwer.
+Dane zapisują się w pamięci przeglądarki na Twoim urządzeniu. Po zalogowaniu (**Plan → Konto i synchronizacja**) synchronizują się też z darmową bazą Firebase (projekt `silownia-reko`), więc są te same na telefonie i komputerze.
 
 ## Pliki
 
@@ -12,6 +12,7 @@ Dane zapisują się tylko w pamięci przeglądarki na Twoim urządzeniu. Nic nie
 | `style.css` | Wygląd (szkło, tryb jasny i ciemny) |
 | `app.js` | Logika, plan treningowy, obliczenia |
 | `manifest.webmanifest` | Dane do instalacji na ekranie telefonu |
+| `sync.js` | Logowanie i synchronizacja z Firebase |
 | `sw.js` | Działanie offline |
 | `icons/` | Ikony aplikacji |
 
