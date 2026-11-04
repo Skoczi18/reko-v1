@@ -41,6 +41,16 @@ Dane zapisują się w pamięci przeglądarki na Twoim urządzeniu. Po zalogowani
 
 Ważne na iPhonie: aplikacja z ekranu początkowego ma osobną pamięć niż ta sama strona w Safari. Zapisuj treningi zawsze w jednym miejscu, najlepiej w aplikacji z ekranu.
 
+## Co jest w aplikacji
+
+- **Trening:** pod każdym ćwiczeniem ostatni raz (serie, RPE, notatka), podpowiedź progresji liczona z zakresu powtórzeń i suwaka trudności (RPE), talerze na stronę przy sztandze. Czas treningu rusza po pierwszej odhaczonej serii.
+- **Przerwa:** pełny ekran z pierścieniem, następną serią do poprawienia i talerzami. Przeciągnij w dół, żeby zmniejszyć do paska.
+- **Po zapisie:** podsumowanie z czasem, tonażem, rekordami i porównaniem z poprzednim takim samym treningiem.
+- **Historia:** kalendarz (przesuwanie miesięcy palcem, planowanie treningów, przytrzymaj i przeciągnij, żeby przenieść trening).
+- **Postęp:** wykres i historia każdego ćwiczenia.
+- **Pomiary:** zdjęcia sylwetki z suwakiem porównania. Zdjęcia zostają tylko na telefonie.
+- **Plan → Przypomnienia:** pomiary co tydzień i zaplanowane treningi do Kalendarza iPhone'a (plik .ics).
+
 ## Timer przerwy i Zegar
 
 Timer zostaje na ekranie, dopóki nie stukniesz **OK**. Przetrwa też zminimalizowanie i zamknięcie aplikacji. Podczas treningu ekran nie gaśnie.

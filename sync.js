@@ -48,8 +48,8 @@ let known = { workouts: new Map(), measurements: new Map() }; // id -> JSON w ch
 let cloudMeta = '';                  // JSON ustawień, który jest teraz w chmurze
 let pushTimer = null;
 
-// ustawienia i szkice; timer zostaje lokalny dla urządzenia
-const metaOf = (s) => JSON.stringify({ settings: s.settings, drafts: s.drafts });
+// ustawienia, szkice i plan w kalendarzu; timer zostaje lokalny dla urządzenia
+const metaOf = (s) => JSON.stringify({ settings: s.settings, drafts: s.drafts, planned: s.planned });
 
 function setStatus(status, detail = '') {
   window.cloudState = { ...window.cloudState, status, detail, email: user?.email || '' };
@@ -89,6 +89,7 @@ function startListening(uid) {
         window.applyRemote((s) => {
           s.settings = { ...s.settings, ...m.settings };
           s.drafts = m.drafts || {};
+          if (Array.isArray(m.planned)) s.planned = m.planned;
           s.sync = { ...(s.sync || {}), metaAt: d.updatedAt || Date.now() };
           cloudMeta = metaOf(s); // żeby nie odesłać tego samego z powrotem
         });
