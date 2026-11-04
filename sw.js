@@ -1,6 +1,6 @@
 // Service worker: aplikacja działa offline po pierwszym otwarciu.
 // Po zmianie plików podbij numer wersji, żeby telefon pobrał nową wersję.
-const CACHE = 'silownia-v2';
+const CACHE = 'silownia-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -13,7 +13,7 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -28,7 +28,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
-    fetch(event.request)
+    // no-cache: zawsze pytamy GitHub o świeżą wersję (Pages każe trzymać pliki 10 min)
+    fetch(event.request, { cache: 'no-cache' })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(event.request, copy));

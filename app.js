@@ -1396,7 +1396,7 @@ window.addEventListener('pagehide', saveNow);
 if (!localStorage.getItem(STORAGE_KEY)) saveNow();
 navigator.storage?.persist?.().catch(() => {});
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
 }
 route();
 // timer sprzed zamknięcia aplikacji; skończony ponad 15 min temu już nikomu się nie przyda
