@@ -40,6 +40,12 @@ Dane zapisują się tylko w pamięci przeglądarki na Twoim urządzeniu. Nic nie
 
 Ważne na iPhonie: aplikacja z ekranu początkowego ma osobną pamięć niż ta sama strona w Safari. Zapisuj treningi zawsze w jednym miejscu, najlepiej w aplikacji z ekranu.
 
+## Timer przerwy i Zegar
+
+Timer zostaje na ekranie, dopóki nie stukniesz **OK**. Przetrwa też zminimalizowanie i zamknięcie aplikacji. Podczas treningu ekran nie gaśnie.
+
+Żeby przerwa była widoczna w Dynamic Island i dzwoniła przy zablokowanym telefonie, zrób w aplikacji **Skróty** skrót „Przerwa” (instrukcja w **Plan → Timer w Zegarze**). Wtedy przycisk ⏱ przy timerze, albo automatycznie każda odhaczona seria, uruchamia systemowy minutnik.
+
 ## Kopia zapasowa
 
 Zakładka **Plan → Kopia zapasowa → Pobierz kopię (JSON)**. Zrób ją co kilka tygodni i przed zmianą telefonu. Na nowym urządzeniu: **Wczytaj kopię**.

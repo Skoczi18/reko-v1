@@ -358,6 +358,8 @@ details.acc[open] > summary .chev { transform: rotate(90deg); }
 .acc-body h4 { margin: 18px 0 6px; font-size: 15px; font-weight: 650; }
 .acc-body h4:first-child { margin-top: 2px; }
 .acc-body p { margin: 6px 0; color: var(--text-2); font-size: 15px; max-width: 70ch; }
+.acc-body ol { margin: 6px 0 12px; padding-left: 20px; color: var(--text-2); font-size: 15px; }
+.acc-body ol li { margin: 3px 0; }
 .acc-body ul { margin: 6px 0; padding-left: 18px; color: var(--text-2); font-size: 15px; }
 .acc-body li { margin: 4px 0; }
 .acc-body li b, .acc-body p b { color: var(--text); }
@@ -425,6 +427,19 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .timer .t-time { font-family: var(--font-num); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 64px; }
 .timer.finished .t-time { color: var(--green); }
 .timer .btn { padding: 8px 12px; font-size: 14px; }
+.timer .grow { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.timer .t-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timer .btn-icon { padding: 7px; display: grid; place-items: center; }
+.timer .btn-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.timer.finished { box-shadow: var(--glass-shadow), 0 0 0 1.5px var(--green); }
+@media (prefers-reduced-motion: no-preference) {
+  .timer.finished { animation: rest-over 1.6s ease-in-out infinite; }
+}
+@keyframes rest-over {
+  50% { box-shadow: var(--glass-shadow), 0 0 0 1.5px var(--green), 0 0 26px 2px rgba(48, 209, 88, 0.45); }
+}
+/* ukryty przełącznik do haptyki na iOS */
+.haptic { position: fixed; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; left: -10px; top: 0; }
 
 /* ---------- Sheet ---------- */
 .sheet-wrap { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; justify-content: center; }

@@ -1,6 +1,6 @@
 // Service worker: aplikacja działa offline po pierwszym otwarciu.
 // Po zmianie plików podbij numer wersji, żeby telefon pobrał nową wersję.
-const CACHE = 'silownia-v1';
+const CACHE = 'silownia-v2';
 const ASSETS = [
   './',
   './index.html',

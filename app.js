@@ -171,12 +171,15 @@ function defaults() {
       },
       pct: DEFAULT_PCT.slice(),
       nutrition: { weight: 106, height: 188, age: 24, act: 1.5, deficit: 250, protein: 1.9, fat: 0.8, trainPlus: 150 },
+      // mode: 'off' | 'button' | 'auto' (minutnik w Zegarze przez Skróty)
+      clock: { mode: 'button', name: 'Przerwa' },
     },
     workouts: [],
     measurements: [
       { id: 'start', date: '2026-11-03', weight: 106, waist: 96, flanks: 104, chest: 111, thigh: 71, calf: 44, biceps: 40, steps: null, note: 'Start (waga po jedzeniu)' },
     ],
     drafts: {},
+    timer: null,
   };
 }
 
@@ -194,11 +197,13 @@ function loadState() {
         ...(s.settings || {}),
         lifts: { ...base.settings.lifts, ...(s.settings?.lifts || {}) },
         nutrition: { ...base.settings.nutrition, ...(s.settings?.nutrition || {}) },
+        clock: { ...base.settings.clock, ...(s.settings?.clock || {}) },
         pct: Array.isArray(s.settings?.pct) && s.settings.pct.length === 8 ? s.settings.pct : base.settings.pct,
       },
       workouts: Array.isArray(s.workouts) ? s.workouts : [],
       measurements: Array.isArray(s.measurements) ? s.measurements : base.measurements,
       drafts: s.drafts && typeof s.drafts === 'object' ? s.drafts : {},
+      timer: s.timer && Number.isFinite(s.timer.end) ? s.timer : null,
     };
   } catch (e) {
     console.warn('Nie udało się wczytać danych', e);
@@ -373,6 +378,7 @@ function render() {
     if (t.dataset.tab === ui.tab) t.setAttribute('aria-current', 'page');
     else t.removeAttribute('aria-current');
   });
+  syncWakeLock();
 }
 
 function head(title, sub) {
@@ -866,6 +872,26 @@ function viewPlan() {
     </tbody></table></div>
     <p>Nie kupuj: spalaczy tłuszczu, BCAA, boosterów testosteronu, L-karnityny ani glutaminy.</p>`);
 
+  const ck = st.clock;
+  html += acc('zegar', 'Timer w Zegarze', ck.mode === 'off' ? 'Wyłączony' : ck.mode === 'auto' ? 'Uruchamia się sam po serii' : 'Przycisk przy timerze', `
+    <p>Strona nie może pokazać się w Dynamic Island, ale systemowy minutnik tak. Aplikacja uruchamia go przez skrót z aplikacji Skróty. Minutnik zadzwoni także przy zablokowanym telefonie.</p>
+    <label class="lbl" for="c-mode">Kiedy uruchamiać minutnik</label>
+    <select id="c-mode" class="field" data-clock="mode">
+      ${[['off', 'Nigdy'], ['button', 'Po stuknięciu przycisku ⏱ przy timerze'], ['auto', 'Sam, po każdej odhaczonej serii']]
+        .map(([v, l]) => `<option value="${v}" ${ck.mode === v ? 'selected' : ''}>${l}</option>`).join('')}
+    </select>
+    <label class="lbl" for="c-name">Nazwa skrótu</label>
+    <input id="c-name" class="field" data-clock="name" value="${esc(ck.name)}" autocapitalize="off" autocomplete="off">
+    <h4>Jak zrobić skrót (raz, ok. 1 minuty)</h4>
+    <ol>
+      <li>Otwórz aplikację <b>Skróty</b> i stuknij <b>+</b>.</li>
+      <li>Dodaj akcję <b>Pobierz liczby z danych wejściowych</b>.</li>
+      <li>Dodaj akcję <b>Uruchom minutnik</b>. Stuknij w czas, wybierz zmienną <b>Liczby</b> i jednostkę <b>sekundy</b>.</li>
+      <li>Nazwij skrót dokładnie tak jak wyżej (<b>${esc(ck.name || 'Przerwa')}</b>) i zapisz.</li>
+    </ol>
+    <button class="btn" data-action="clock-test">Test: minutnik na 10 s</button>
+    <p class="small faint">Po uruchomieniu na chwilę otworzą się Skróty. Wróć gestem lub stuknij „Siłownia” w lewym górnym rogu. Timer w aplikacji liczy dalej.</p>`);
+
   html += acc('dane', 'Kopia zapasowa', 'Dane są tylko na tym urządzeniu', `
     <p>Treningi i pomiary zapisują się w pamięci tej przeglądarki na tym telefonie. Nie trafiają na żaden serwer.</p>
     <div class="callout warn">Na iPhonie aplikacja dodana do ekranu początkowego ma osobną pamięć niż Safari. Rób kopię co kilka tygodni i przed zmianą telefonu.</div>
@@ -950,43 +976,121 @@ function toast(msg) {
   toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 
-const timer = { end: 0, total: 0, label: '', iv: null, finishedAt: 0 };
+/* Timer przerwy. Stan siedzi w state.timer, więc przeżyje zminimalizowanie
+   i ubicie aplikacji przez iOS: liczymy od godziny końca, nie od ticków. */
+const timer = { iv: null, html: '' };
+
 function startTimer(seconds, label) {
   if (!seconds) return;
-  timer.total = seconds;
-  timer.end = Date.now() + seconds * 1000;
-  timer.label = label;
-  timer.finishedAt = 0;
+  state.timer = { end: Date.now() + seconds * 1000, total: seconds, label, finishedAt: 0 };
+  saveNow();
+  primeAudio();
+  runTimer();
+  if (state.settings.clock.mode === 'auto') launchClock(seconds);
+}
+function runTimer() {
   clearInterval(timer.iv);
   timer.iv = setInterval(tickTimer, 250);
   tickTimer();
+  syncWakeLock();
 }
 function stopTimer() {
   clearInterval(timer.iv);
   timer.iv = null;
+  timer.html = '';
+  if (state.timer) { state.timer = null; saveNow(); }
   $('#timer').hidden = true;
+  syncWakeLock();
 }
+const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+const clockBtn = () => (state.settings.clock.mode === 'off' ? '' : `<button class="btn btn-icon" data-action="timer-clock" aria-label="Uruchom minutnik w Zegarze">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/></svg></button>`);
 function tickTimer() {
+  const t = state.timer;
+  if (!t) return stopTimer();
   const el = $('#timer');
-  const left = Math.ceil((timer.end - Date.now()) / 1000);
+  const left = Math.ceil((t.end - Date.now()) / 1000);
+  let html;
   if (left <= 0) {
-    if (!timer.finishedAt) {
-      timer.finishedAt = Date.now();
-      try { navigator.vibrate?.([220, 120, 220]); } catch (e) { /* brak wibracji */ }
+    if (!t.finishedAt) {
+      t.finishedAt = Date.now();
+      saveSoon();
+      // sygnał tylko, gdy koniec przerwy dzieje się teraz, a nie kiedy wracasz po kwadransie
+      if (Date.now() - t.end < 10000) restOverAlert();
     }
-    if (Date.now() - timer.finishedAt > 5000) return stopTimer();
+    const over = Math.floor((Date.now() - t.end) / 1000);
     el.className = 'timer glass finished';
-    el.innerHTML = `<span class="t-time">0:00</span><span class="grow">Czas na kolejną serię</span><button class="btn" data-action="timer-skip">OK</button>`;
-    el.hidden = false;
-    return;
+    html = `<span class="t-time">0:00</span><span class="grow"><b>Czas na serię</b><span class="t-label t-over">${over >= 5 ? `+${mmss(over)} po przerwie` : esc(t.label)}</span></span>
+      <button class="btn btn-primary" data-action="timer-skip">OK</button>`;
+  } else {
+    el.className = 'timer glass';
+    html = `<span class="t-time">${mmss(left)}</span><span class="grow t-label">Przerwa</span>
+      ${clockBtn()}
+      <button class="btn" data-action="timer-add" aria-label="Dodaj 15 sekund">+15 s</button>
+      <button class="btn" data-action="timer-skip">Pomiń</button>`;
   }
-  const m = Math.floor(left / 60);
-  const s = String(left % 60).padStart(2, '0');
-  el.className = 'timer glass';
-  el.innerHTML = `<span class="t-time">${m}:${s}</span><span class="grow t-label">Przerwa</span>
-    <button class="btn" data-action="timer-add" aria-label="Dodaj 15 sekund">+15 s</button>
-    <button class="btn" data-action="timer-skip">Pomiń</button>`;
+  // przepisujemy tylko przy zmianie, żeby nie podmieniać przycisku pod palcem
+  if (html !== timer.html) { el.innerHTML = html; timer.html = html; }
   el.hidden = false;
+}
+
+// Skrót „Przerwa” w aplikacji Skróty uruchamia systemowy minutnik (Dynamic Island, ekran blokady).
+function launchClock(seconds) {
+  const name = state.settings.clock.name.trim() || 'Przerwa';
+  location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(name)}&input=text&text=${Math.max(1, Math.round(seconds))}`;
+}
+
+/* Dźwięk i haptyka. Safari na iOS nie ma navigator.vibrate, ale od iOS 18
+   kliknięcie w przełącznik <input switch> daje systemowy „tik”. */
+let audioCtx = null;
+function primeAudio() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state !== 'running') audioCtx.resume();
+  } catch (e) { audioCtx = null; }
+}
+function beep(at, freq) {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, at);
+  g.gain.exponentialRampToValueAtTime(0.35, at + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + 0.28);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(at);
+  o.stop(at + 0.3);
+}
+function haptic() {
+  if (navigator.vibrate) { try { navigator.vibrate(40); } catch (e) { /* brak wibracji */ } return; }
+  $('#haptic')?.click();
+}
+function restOverAlert() {
+  if (navigator.vibrate) { try { navigator.vibrate([220, 120, 220, 120, 220]); } catch (e) { /* brak */ } }
+  else [0, 180, 360].forEach((ms) => setTimeout(haptic, ms));
+  try {
+    if (audioCtx) {
+      audioCtx.resume();
+      const now = audioCtx.currentTime + 0.05;
+      beep(now, 880); beep(now + 0.32, 880); beep(now + 0.64, 1175);
+    }
+  } catch (e) { /* bez dźwięku */ }
+}
+
+// Ekran nie gaśnie, gdy leci przerwa albo trwa rozpoczęty trening.
+let wakeLock = null;
+async function syncWakeLock() {
+  const want = document.visibilityState === 'visible'
+    && (!!state.timer || (ui.tab === 'trening' && Object.values(state.drafts).some((d) => d?.touched)));
+  try {
+    if (want && !wakeLock && navigator.wakeLock) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!want && wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch (e) { wakeLock = null; }
 }
 
 /* ------------------------------ Akcje -------------------------------- */
@@ -1091,6 +1195,7 @@ function onClick(e) {
       const set = d.entries[el.dataset.ex].sets[Number(el.dataset.i)];
       set.done = !set.done;
       d.touched = true;
+      haptic();
       if (set.done) {
         const row = el.closest('.set-row');
         const repsInput = row.querySelector('[data-k="reps"]');
@@ -1160,7 +1265,13 @@ function onClick(e) {
       }
       break;
     case 'close-sheet': closeSheet(); break;
-    case 'timer-add': timer.end += 15000; tickTimer(); break;
+    case 'timer-add':
+      if (state.timer) { state.timer.end += 15000; state.timer.finishedAt = 0; saveSoon(); tickTimer(); }
+      break;
+    case 'timer-clock':
+      if (state.timer) launchClock((state.timer.end - Date.now()) / 1000);
+      break;
+    case 'clock-test': launchClock(10); break;
     case 'timer-skip': stopTimer(); break;
     default: break;
   }
@@ -1196,6 +1307,13 @@ function onInput(e) {
 
 function onChange(e) {
   const t = e.target;
+  if (t.dataset.clock) {
+    state.settings.clock[t.dataset.clock] = t.value;
+    saveNow();
+    render();
+    if (state.timer) { timer.html = ''; tickTimer(); }
+    return;
+  }
   if (t.id === 'import-file' && t.files?.[0]) {
     importData(t.files[0]);
     t.value = '';
@@ -1267,7 +1385,12 @@ document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () 
   location.hash = t.dataset.tab;
 }));
 window.addEventListener('hashchange', route);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { saveNow(); return; }
+  // po powrocie od razu właściwy czas (iOS wstrzymuje JS w tle) i ponowna blokada wygaszania
+  if (state.timer) tickTimer();
+  syncWakeLock();
+});
 window.addEventListener('pagehide', saveNow);
 
 if (!localStorage.getItem(STORAGE_KEY)) saveNow();
@@ -1276,3 +1399,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
 route();
+// timer sprzed zamknięcia aplikacji; skończony ponad 15 min temu już nikomu się nie przyda
+if (state.timer && Date.now() - state.timer.end < 15 * 60000) runTimer();
+else if (state.timer) stopTimer();
